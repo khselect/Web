@@ -1,7 +1,9 @@
 services:
   - type: web
-    name: my-dashboard
+    name: your-app-name
     env: python
     pythonVersion: 3.11
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"
+    buildCommand: apt-get update && apt-get install -y build-essential && pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    plan: free
+    region: oregon
