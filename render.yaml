@@ -2,5 +2,6 @@ services:
   - type: web
     name: my-dashboard
     env: python
+    pythonVersion: 3.11
     buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn app:app"
