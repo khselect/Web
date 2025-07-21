@@ -185,7 +185,7 @@ def failure_rate_trend():
 # --- 가상 데이터 생성을 위한 헬퍼 함수 ---
 def _generate_fake_data(num_records=150):
     """실제 가상 데이터를 생성하는 내부 함수"""
-    part_ids = ['Bearing-A', 'Bearing-B', 'Impeller-C', 'Seal-D', 'Gear-E']
+    part_ids = ['EPR2A', 'TIDK', 'TICC', 'DCU', '엔코더']
     start_date_obj = date(2022, 1, 1)
     end_date_obj = date.today()
     for _ in range(num_records):
