@@ -153,11 +153,60 @@ function updateDashboard(results) {
             const tabPane = document.createElement('div');
             tabPane.className = `tab-pane fade ${isFirstTab ? 'show active' : ''}`;
             tabPane.id = `pane-${safePartId}`;
+
+            //탭 내부를 그리드로 나누어 차트와 테이블을 배치합니다.
+            const contentRow = document.createElement('div');
+            contentRow.className = 'row mt-2';
+
+            // 왼쪽 컬럼 (차트)
+            const chartCol = document.createElement('div');
+            chartCol.className = 'col-md-8';
             const chartContainer = document.createElement('div');
             chartContainer.style.height = '350px';
             const canvas = document.createElement('canvas');
             chartContainer.appendChild(canvas);
-            tabPane.appendChild(chartContainer);
+            chartCol.appendChild(chartContainer);
+
+            // 오른쪽 컬럼 (생존 확률 데이터 테이블)
+            const tableCol = document.createElement('div');
+            tableCol.className = 'col-md-4';
+            const dataTable = document.createElement('table');
+            dataTable.className = 'table table-sm table-hover table-bordered';
+            dataTable.innerHTML = `
+                <caption class="caption-top">주요 시간별 생존 확률</caption>
+                <thead class="table-light">
+                    <tr><th>시간 (h)</th><th>생존 확률 (%)</th></tr>
+                </thead>
+                <tbody></tbody>
+            `;
+            const tableBody = dataTable.querySelector('tbody');
+
+            // B10 수명 데이터를 표의 맨 위에 추가
+            if (data.b10_life) {
+                const b10Row = tableBody.insertRow();
+                b10Row.innerHTML = `<td class="fw-bold">${Math.round(data.b10_life).toLocaleString()} (B10)</td><td class="fw-bold">90.00 %</td>`;
+            }
+            
+            // 그래프 데이터에서 일부를 추출하여 표에 추가
+            const plotX = data.plot_data.x;
+            const plotY = data.plot_data.y;
+            const pointsToShow = 6;
+            const step = Math.max(1, Math.floor(plotX.length / (pointsToShow + 1)));
+
+            for (let i = step; i < plotX.length; i += step) {
+                if (plotX[i] > 0 && plotY[i] !== null) {
+                    const tr = tableBody.insertRow();
+                    const time = Math.round(plotX[i]).toLocaleString();
+                    const prob = (plotY[i] * 100).toFixed(2);
+                    tr.innerHTML = `<td>${time}</td><td>${prob} %</td>`;
+                }
+            }
+            tableCol.appendChild(dataTable);
+
+            contentRow.appendChild(chartCol);
+            contentRow.appendChild(tableCol);
+
+            tabPane.appendChild(contentRow);
             chartTabsContent.appendChild(tabPane);
 
             new Chart(canvas, {
