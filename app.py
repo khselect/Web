@@ -91,7 +91,7 @@ def pm_watchlist():
                     usage_ratio = (operating_hours / b10_life) * 100
                     status = '정상'
                     if usage_ratio >= 200: status = '위험'
-                    elif usage_ratio >= 0: status = '주의'
+                    elif usage_ratio >= 100: status = '주의'
                     
                     if status != '정상':
                         watchlist.append({
@@ -192,7 +192,7 @@ def failure_rate_trend():
 def _generate_fake_data(num_records=150):
     """실제 가상 데이터를 생성하는 내부 함수"""
     priorities = ['높음', '중간', '낮음']
-    part_ids = ['Bearing-A', 'Bearing-B', 'Impeller-C', 'Seal-D', 'Gear-E']
+    part_ids = ['DCU', 'EPR2A', 'TIDK', 'TICC', '엔코더']
     start_date_obj = date(2023, 1, 1)
     end_date_obj = date.today()
     
