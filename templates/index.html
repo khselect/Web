@@ -9,20 +9,21 @@
 <body>
     <div class="container mt-5">
         <h1 class="text-center mb-4">부품 수명 분석</h1>
+
         <div class="card mb-5">
             <div class="card-header"><h3>신규 데이터 입력</h3></div>
             <div class="card-body">
                 <form action="/add" method="POST">
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-3">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
                             <label for="part_id" class="form-label">부품 ID</label>
                             <input type="text" class="form-control" id="part_id" name="part_id" placeholder="예: Bearing-A" required>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label for="serial_number" class="form-label">시리얼 번호</label>
                             <input type="text" class="form-control" id="serial_number" name="serial_number" placeholder="예: SN-1234">
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label for="cost" class="form-label">부품 가격 (원)</label>
                             <input type="number" class="form-control" id="cost" name="cost" placeholder="예: 50000">
                         </div>
@@ -34,15 +35,23 @@
                                 <option value="낮음">낮음</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
+                    </div>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
                             <label for="install_date" class="form-label">설치 일자</label>
                             <input type="date" class="form-control" id="install_date" name="install_date" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="removal_date" class="form-label">제거 일자</label>
+                            <input type="date" class="form-control" id="removal_date" name="removal_date">
                         </div>
                         <div class="col-md-2">
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" id="is_failure" name="is_failure">
-                                <label class="form-check-label" for="is_failure">고장 발생 여부 (Y)</label>
+                                <label class="form-check-label" for="is_failure">고장 발생</label>
                             </div>
+                        </div>
+                        <div class="col-md-2">
                             <button type="submit" class="btn btn-primary w-100">추가</button>
                         </div>
                     </div>
