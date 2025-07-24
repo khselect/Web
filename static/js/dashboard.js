@@ -22,6 +22,61 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
+// 대시보드 초기화 및 탭 이벤트 리스너 설정
+function initializeDashboard() {
+    // 필수 플러그인 등록
+    if (typeof ChartDataLabels !== 'undefined') {
+        Chart.register(ChartDataLabels);
+    }
+
+    const chartLoadStatus = {}; // 각 차트의 로딩 상태를 추적
+    const tabButtons = document.querySelectorAll('#dashboard-tabs .nav-link');
+
+    // 첫 번째 탭(활성화된 탭)의 차트를 즉시 로드
+    const activeTab = document.querySelector('#dashboard-tabs .nav-link.active');
+    if (activeTab) {
+        loadChartForTab(activeTab.id, chartLoadStatus);
+    }
+
+    // 각 탭 버튼에 클릭 이벤트 리스너 추가
+    tabButtons.forEach(button => {
+        button.addEventListener('shown.bs.tab', function(event) {
+            loadChartForTab(event.target.id, chartLoadStatus);
+        });
+    });
+}
+
+// 탭 ID에 맞는 차트 로드 함수를 호출하는 래퍼 함수
+function loadChartForTab(tabId, chartLoadStatus) {
+    if (chartLoadStatus[tabId]) {
+        return; // 이미 로드된 차트는 다시 로드하지 않음
+    }
+
+    console.log(`${tabId}에 해당하는 차트를 로드합니다.`);
+
+    switch (tabId) {
+        case 'dist-tab':
+            loadPartDistributionChart();
+            break;
+        case 'rank-tab':
+            loadFailureRankingChart();
+            break;
+        case 'heatmap-tab':
+            loadFailureHeatmapChart();
+            break;
+        case 'install-tab':
+            loadInstallationTrendChart();
+            break;
+        case 'ratio-tab':
+            loadFailureLifespanRatioChart();
+            break;
+        case 'trend-tab':
+            loadFailureRateTrendChart();
+            break;
+    }
+    chartLoadStatus[tabId] = true; // 로드 완료 상태로 표시
+}
+
 // --- `index.html` 용 함수들 ---
 
 async function loadPmWatchlist() {
