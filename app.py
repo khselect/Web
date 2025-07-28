@@ -35,6 +35,11 @@ def index():
     all_data = PumpData.query.order_by(PumpData.install_date.desc()).all()
     return render_template('index.html', all_data=all_data)
 
+@app.route('/infographic')
+def infographic():
+    """인포그래픽 페이지를 렌더링합니다."""
+    return render_template('infographic.html')
+
 @app.route('/analysis-view')
 def analysis_view():
     """수명 분석 결과 페이지를 렌더링합니다."""
