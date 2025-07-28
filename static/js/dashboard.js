@@ -1,24 +1,25 @@
 document.addEventListener('DOMContentLoaded', function () {
-    console.log("페이지 로딩 완료. 스크립트 실행을 시작합니다.");
+    const path = window.location.pathname; // 현재 페이지의 경로를 가져옵니다.
 
-    // index.html 페이지 기능 실행
-    if (document.getElementById('pm-watchlist-section')) {
-        console.log("PM Watchlist 섹션 발견. loadPmWatchlist 함수를 호출합니다.");
-        loadPmWatchlist();
-    }
-    if (document.getElementById('summary-section')) {
-        console.log("분석 요약 섹션 발견. fetchAnalysisData 함수를 호출합니다.");
-        fetchAnalysisData();
-    }
-
-    // dashboard.html 페이지 기능 실행
-    if (document.getElementById('partDistributionChart')) {
-        console.log("대시보드 차트 발견. loadDashboardCharts 함수를 호출합니다.");
-        // 필수 플러그인을 여기에 등록합니다.
-        if (typeof ChartDataLabels !== 'undefined') {
-            Chart.register(ChartDataLabels);
+    // 메인 페이지 (/) 기능 실행
+    if (path === '/') {
+        if (document.getElementById('pm-watchlist-section')) {
+            loadPmWatchlist();
         }
-        loadDashboardCharts();
+    }
+    // 수명 분석 결과 페이지 (/analysis-view) 기능 실행
+    else if (path === '/analysis-view') {
+        if (document.getElementById('summary-section')) {
+            fetchAnalysisData();
+        }
+    }
+    // 종합 대시보드 페이지 (/dashboard) 기능 실행
+    else if (path === '/dashboard') {
+        if (document.getElementById('partDistributionChart')) {
+            // Chart.js 플러그인이 필요할 경우 여기에 등록
+            // Chart.register(ChartDataLabels);
+            loadDashboardCharts();
+        }
     }
 });
 
@@ -79,66 +80,66 @@ function loadChartForTab(tabId, chartLoadStatus) {
 
 // --- `index.html` 용 함수들 ---
 
-async function loadPmWatchlist() {
-    const watchlistSection = document.getElementById('pm-watchlist-section');
-    if (!watchlistSection) return;
+// async function loadPmWatchlist() {
+//     const watchlistSection = document.getElementById('pm-watchlist-section');
+//     if (!watchlistSection) return;
 
-    try {
-        const response = await fetch('/api/pm_watchlist');
-        if (!response.ok) throw new Error(`서버 응답 오류: ${response.status}`);
+//     try {
+//         const response = await fetch('/api/pm_watchlist');
+//         if (!response.ok) throw new Error(`서버 응답 오류: ${response.status}`);
         
-        const watchlist = await response.json();
-        if (watchlist.error) throw new Error(`API 오류: ${watchlist.error}`);
+//         const watchlist = await response.json();
+//         if (watchlist.error) throw new Error(`API 오류: ${watchlist.error}`);
 
-        if (watchlist.length === 0) {
-            watchlistSection.innerHTML = '<p class="text-muted mb-0">현재 점검이 필요한 부품이 없습니다.</p>';
-            return;
-        }
+//         if (watchlist.length === 0) {
+//             watchlistSection.innerHTML = '<p class="text-muted mb-0">현재 점검이 필요한 부품이 없습니다.</p>';
+//             return;
+//         }
 
-        const table = document.createElement('table');
-        table.className = 'table table-hover align-middle mb-0';
-        table.innerHTML = `
-            <thead>
-                <tr>
-                    <th>부품 ID</th>
-                    <th>시리얼 번호</th>
-                    <th>현재 가동시간</th>
-                    <th>B10 수명</th>
-                    <th style="width: 25%;">위험도</th>
-                    <th>상태</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        `;
-        const tbody = table.querySelector('tbody');
+//         const table = document.createElement('table');
+//         table.className = 'table table-hover align-middle mb-0';
+//         table.innerHTML = `
+//             <thead>
+//                 <tr>
+//                     <th>부품 ID</th>
+//                     <th>시리얼 번호</th>
+//                     <th>현재 가동시간</th>
+//                     <th>B10 수명</th>
+//                     <th style="width: 25%;">위험도</th>
+//                     <th>상태</th>
+//                 </tr>
+//             </thead>
+//             <tbody></tbody>
+//         `;
+//         const tbody = table.querySelector('tbody');
 
-        watchlist.forEach(item => {
-            const statusColor = item.status === '위험' ? 'bg-danger' : 'bg-warning';
-            const row = tbody.insertRow();
-            row.innerHTML = `
-                <td><strong>${item.part_id}</strong></td>
-                <td>${item.serial_number || 'N/A'}</td>
-                <td>${item.operating_hours.toLocaleString()} 시간</td>
-                <td>${item.b10_life.toLocaleString()} 시간</td>
-                <td>
-                    <div class="progress" style="height: 20px;">
-                        <div class="progress-bar ${statusColor}" role="progressbar" style="width: ${item.usage_ratio}%;" 
-                             aria-valuenow="${item.usage_ratio}" aria-valuemin="0" aria-valuemax="100">
-                             ${item.usage_ratio}%
-                        </div>
-                    </div>
-                </td>
-                <td><span class="badge ${statusColor}">${item.status}</span></td>
-            `;
-        });
-        watchlistSection.innerHTML = '';
-        watchlistSection.appendChild(table);
+//         watchlist.forEach(item => {
+//             const statusColor = item.status === '위험' ? 'bg-danger' : 'bg-warning';
+//             const row = tbody.insertRow();
+//             row.innerHTML = `
+//                 <td><strong>${item.part_id}</strong></td>
+//                 <td>${item.serial_number || 'N/A'}</td>
+//                 <td>${item.operating_hours.toLocaleString()} 시간</td>
+//                 <td>${item.b10_life.toLocaleString()} 시간</td>
+//                 <td>
+//                     <div class="progress" style="height: 20px;">
+//                         <div class="progress-bar ${statusColor}" role="progressbar" style="width: ${item.usage_ratio}%;" 
+//                              aria-valuenow="${item.usage_ratio}" aria-valuemin="0" aria-valuemax="100">
+//                              ${item.usage_ratio}%
+//                         </div>
+//                     </div>
+//                 </td>
+//                 <td><span class="badge ${statusColor}">${item.status}</span></td>
+//             `;
+//         });
+//         watchlistSection.innerHTML = '';
+//         watchlistSection.appendChild(table);
 
-    } catch (error) {
-        console.error("🚨 주의 목록 로딩 실패:", error);
-        watchlistSection.innerHTML = `<div class="alert alert-danger">주의 목록을 불러오는 중 오류가 발생했습니다.</div>`;
-    }
-}
+//     } catch (error) {
+//         console.error("🚨 주의 목록 로딩 실패:", error);
+//         watchlistSection.innerHTML = `<div class="alert alert-danger">주의 목록을 불러오는 중 오류가 발생했습니다.</div>`;
+//     }
+// }
 
 async function fetchAnalysisData() {
     const summarySection = document.getElementById('summary-section');
@@ -160,7 +161,6 @@ function updateDashboard(results) {
     const chartTabs = document.getElementById('chart-tabs');
     const chartTabsContent = document.getElementById('chart-tabs-content');
 
-    // 함수가 호출되었으나 대상 요소가 없는 경우를 방지
     if (!summarySection || !chartTabs || !chartTabsContent) return;
     
     summarySection.innerHTML = '';
@@ -198,7 +198,7 @@ function updateDashboard(results) {
             <td>${data.b10_life !== null ? data.b10_life.toLocaleString() : 'N/A'}</td>
             <td>${data.error ? `<span class="badge bg-warning text-dark">${data.error}</span>` : '<span class="badge bg-success">분석 완료</span>'}</td>`;
 
-        if (data.plot_data) {
+        if (data.plot_data && data.plot_data.x && data.plot_data.y) {
             const safePartId = partId.replace(/[^a-zA-Z0-9]/g, '');
             const tabItem = document.createElement('li');
             tabItem.className = 'nav-item';
@@ -208,8 +208,8 @@ function updateDashboard(results) {
             const tabPane = document.createElement('div');
             tabPane.className = `tab-pane fade ${isFirstTab ? 'show active' : ''}`;
             tabPane.id = `pane-${safePartId}`;
-
-            //탭 내부를 그리드로 나누어 차트와 테이블을 배치합니다.
+            
+            // ⭐️ 해결: 탭 내부를 그리드로 나누어 차트와 테이블을 배치합니다. ⭐️
             const contentRow = document.createElement('div');
             contentRow.className = 'row mt-2';
 
@@ -260,8 +260,7 @@ function updateDashboard(results) {
 
             contentRow.appendChild(chartCol);
             contentRow.appendChild(tableCol);
-
-            tabPane.appendChild(contentRow);
+            tabPane.appendChild(contentRow); // contentRow를 tabPane에 추가
             chartTabsContent.appendChild(tabPane);
 
             new Chart(canvas, {

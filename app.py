@@ -35,9 +35,19 @@ def index():
     all_data = PumpData.query.order_by(PumpData.install_date.desc()).all()
     return render_template('index.html', all_data=all_data)
 
+@app.route('/analysis-view')
+def analysis_view():
+    """수명 분석 결과 페이지를 렌더링합니다."""
+    return render_template('analysis_view.html')
+
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html')
+
+@app.route('/cost-analysis')
+def cost_analysis():
+    """비용 분석 대시보드 페이지를 렌더링합니다."""
+    return render_template('cost_analysis.html')
 
 @app.route('/add', methods=['POST'])
 def add_data():
@@ -76,39 +86,39 @@ def delete_data(id):
 
 
 # --- API 라우트 ---
-@app.route('/api/pm_watchlist')
-def pm_watchlist():
-    try:
-        analysis_results = perform_weibull_analysis()
-        active_components = PumpData.query.filter_by(removal_date=None).all()
-        watchlist = []
-        for comp in active_components:
-            part_id = comp.part_id
-            if part_id in analysis_results and analysis_results[part_id].get('b10_life'):
-                b10_life = analysis_results[part_id]['b10_life']
-                if b10_life and b10_life > 0:
-                    operating_hours = (datetime.utcnow().date() - comp.install_date).total_seconds() / 3600
-                    usage_ratio = (operating_hours / b10_life) * 100
-                    status = '정상'
-                    if usage_ratio >= 200: status = '위험'
-                    elif usage_ratio >= 100: status = '주의'
+# @app.route('/api/pm_watchlist')
+# def pm_watchlist():
+#     try:
+#         analysis_results = perform_weibull_analysis()
+#         active_components = PumpData.query.filter_by(removal_date=None).all()
+#         watchlist = []
+#         for comp in active_components:
+#             part_id = comp.part_id
+#             if part_id in analysis_results and analysis_results[part_id].get('b10_life'):
+#                 b10_life = analysis_results[part_id]['b10_life']
+#                 if b10_life and b10_life > 0:
+#                     operating_hours = (datetime.utcnow().date() - comp.install_date).total_seconds() / 3600
+#                     usage_ratio = (operating_hours / b10_life) * 100
+#                     status = '정상'
+#                     if usage_ratio >= 200: status = '위험'
+#                     elif usage_ratio >= 100: status = '주의'
                     
-                    if status != '정상':
-                        watchlist.append({
-                            'db_id': comp.id,
-                            'part_id': part_id,
-                            'serial_number': comp.serial_number,
-                            'install_date': comp.install_date.strftime('%Y-%m-%d'),
-                            'operating_hours': round(operating_hours),
-                            'b10_life': round(b10_life),
-                            'usage_ratio': round(usage_ratio),
-                            'status': status
-                        })
-        watchlist.sort(key=lambda x: x['usage_ratio'], reverse=True)
-        return jsonify(watchlist)
-    except Exception as e:
-        print(f"Error in /api/pm_watchlist: {e}")
-        return jsonify({'error': str(e)}), 500
+#                     if status != '정상':
+#                         watchlist.append({
+#                             'db_id': comp.id,
+#                             'part_id': part_id,
+#                             'serial_number': comp.serial_number,
+#                             'install_date': comp.install_date.strftime('%Y-%m-%d'),
+#                             'operating_hours': round(operating_hours),
+#                             'b10_life': round(b10_life),
+#                             'usage_ratio': round(usage_ratio),
+#                             'status': status
+#                         })
+#         watchlist.sort(key=lambda x: x['usage_ratio'], reverse=True)
+#         return jsonify(watchlist)
+#     except Exception as e:
+#         print(f"Error in /api/pm_watchlist: {e}")
+#         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/part_distribution')
 def part_distribution():
@@ -187,6 +197,185 @@ def failure_rate_trend():
     labels = sorted_months
     data = [monthly_failures[month] for month in sorted_months]
     return jsonify({'labels': labels, 'data': data})
+
+# ⭐️ 비용 분석을 위한 신규 API 3개 ⭐️
+
+# 1. 부품별 총 교체 비용 (지난 1년)
+@app.route('/api/cost/replacement_last_year')
+def replacement_cost_last_year():
+    one_year_ago = date.today() - timedelta(days=365)
+    
+    # 지난 1년간 '고장'으로 '제거'된 부품 조회
+    replacements = PumpData.query.filter(
+        PumpData.is_failure == True,
+        PumpData.removal_date >= one_year_ago
+    ).all()
+    
+    cost_by_part = {}
+    for item in replacements:
+        cost_by_part.setdefault(item.part_id, 0)
+        if item.cost:
+            cost_by_part[item.part_id] += item.cost
+            
+    sorted_costs = sorted(cost_by_part.items(), key=lambda x: x[1], reverse=True)
+    
+    labels = [item[0] for item in sorted_costs]
+    data = [item[1] for item in sorted_costs]
+    
+    return jsonify({'labels': labels, 'data': data})
+
+# 2. 시간당 운영 비용 (가성비 분석)
+@app.route('/api/cost/cost_per_hour')
+def cost_per_hour():
+    results = []
+    part_ids = [p.part_id for p in db.session.query(PumpData.part_id).distinct()]
+
+    for part_id in part_ids:
+        total_cost = 0
+        total_hours = 0
+        
+        # '고장'으로 수명이 다한 부품만 계산에 포함
+        failed_components = PumpData.query.filter_by(part_id=part_id, is_failure=True).all()
+        
+        if not failed_components:
+            continue
+
+        for comp in failed_components:
+            if comp.cost and comp.removal_date and comp.install_date:
+                lifespan_hours = (comp.removal_date - comp.install_date).total_seconds() / 3600
+                if lifespan_hours > 0:
+                    total_cost += comp.cost
+                    total_hours += lifespan_hours
+        
+        avg_cost_per_hour = total_cost / total_hours if total_hours > 0 else 0
+        if avg_cost_per_hour > 0:
+            results.append({'part_id': part_id, 'cost_per_hour': avg_cost_per_hour})
+            
+    # 시간당 비용이 낮은 순(가성비 좋은 순)으로 정렬
+    results.sort(key=lambda x: x['cost_per_hour'])
+    
+    labels = [r['part_id'] for r in results]
+    data = [r['cost_per_hour'] for r in results]
+    
+    return jsonify({'labels': labels, 'data': data})
+
+# 3. 고장 예측 기반 예산 계획 (향후 90일 예측으로 수정)
+@app.route('/api/cost/budget_forecast')
+def budget_forecast():
+    try:
+        analysis_results = perform_weibull_analysis()
+        active_components = PumpData.query.filter_by(removal_date=None).all()
+        
+        next_quarter_hours = 90 * 24 # 90일을 시간으로 변환
+        forecast = {} 
+
+        for comp in active_components:
+            part_id = comp.part_id
+            if part_id in analysis_results and analysis_results[part_id].get('b10_life'):
+                b10_life = analysis_results[part_id]['b10_life']
+                
+                if b10_life and b10_life > 0:
+                    operating_hours = (datetime.utcnow().date() - comp.install_date).total_seconds() / 3600
+                    
+                    # ⭐️ 수정: 현재 수명이 B10 미만이지만, 90일 후에는 B10을 초과할 부품을 예측
+                    if operating_hours < b10_life and (operating_hours + next_quarter_hours) >= b10_life:
+                        forecast.setdefault(part_id, {'count': 0, 'total_cost': 0})
+                        forecast[part_id]['count'] += 1
+                        if comp.cost:
+                            forecast[part_id]['total_cost'] += comp.cost
+                            
+        total_forecast_cost = sum(v['total_cost'] for v in forecast.values())
+        
+        return jsonify({'forecast_details': forecast, 'total_forecast_cost': total_forecast_cost})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ⭐️ 신규 기능: 교체 우선순위 부품 추천 API ⭐️
+# @app.route('/api/recommendations/replacement_priority')
+# def replacement_priority():
+#     # 1. 부품별 고장 횟수 계산
+#     failed_parts = [data.part_id for data in PumpData.query.filter_by(is_failure=True).all()]
+#     failure_counts = Counter(failed_parts)
+    
+#     # 2. 부품별 최고 중요도 확인
+#     part_priorities = {}
+#     priority_map = {'높음': 3, '중간': 2, '낮음': 1}
+    
+#     all_parts = db.session.query(PumpData.part_id, PumpData.priority).distinct().all()
+#     for part_id, priority in all_parts:
+#         # 가장 높은 중요도를 해당 부품의 대표 중요도로 설정
+#         current_priority_score = priority_map.get(priority, 0)
+#         if part_id not in part_priorities or current_priority_score > part_priorities[part_id]['score']:
+#             part_priorities[part_id] = {'text': priority, 'score': current_priority_score}
+
+#     # 3. 고장 빈도와 중요도를 조합하여 우선순위 점수 계산
+#     recommendations = []
+#     for part_id, failure_count in failure_counts.items():
+#         priority_info = part_priorities.get(part_id, {'text': 'N/A', 'score': 0})
+#         # 점수 = 고장횟수 * 중요도 가중치
+#         priority_score = failure_count * priority_info['score']
+        
+#         recommendations.append({
+#             'part_id': part_id,
+#             'failure_count': failure_count,
+#             'priority': priority_info['text'],
+#             'score': priority_score
+#         })
+        
+#     # 최종 점수가 높은 순으로 정렬
+#     recommendations.sort(key=lambda x: x['score'], reverse=True)
+    
+#     return jsonify(recommendations)
+
+# ⭐️ 통합된 예방 정비 우선순위 API ⭐️
+@app.route('/api/priority_maintenance')
+def priority_maintenance():
+    try:
+        # 1. 와이블 분석으로 B10 수명 예측
+        analysis_results = perform_weibull_analysis()
+        
+        # 2. 부품별 중요도 점수화
+        priority_map = {'높음': 3, '중간': 2, '낮음': 1}
+        
+        recommendations = []
+        active_components = PumpData.query.filter_by(removal_date=None).all()
+
+        for comp in active_components:
+            part_id = comp.part_id
+            
+            # 3. B10 수명 기반 위험도 계산
+            usage_ratio = 0
+            if part_id in analysis_results and analysis_results[part_id].get('b10_life'):
+                b10_life = analysis_results[part_id]['b10_life']
+                if b10_life and b10_life > 0:
+                    operating_hours = (datetime.utcnow().date() - comp.install_date).total_seconds() / 3600
+                    usage_ratio = (operating_hours / b10_life) * 100
+
+            # 4. 종합 위험 점수 계산 (사용률이 70% 이상인 부품만 대상)
+            if usage_ratio >= 70:
+                priority_score = priority_map.get(comp.priority, 1)
+                cost = comp.cost if comp.cost else 0
+                
+                # 위험 점수 = (B10 수명 사용률) * (중요도 점수) * (비용 가중치)
+                risk_score = (usage_ratio / 100) * priority_score * (1 + cost / 100000)
+                
+                recommendations.append({
+                    'part_id': part_id,
+                    'serial_number': comp.serial_number,
+                    'priority': comp.priority,
+                    'cost': cost,
+                    'usage_ratio': round(usage_ratio),
+                    'risk_score': round(risk_score, 2)
+                })
+
+        # 최종 위험 점수가 높은 순으로 정렬
+        recommendations.sort(key=lambda x: x['risk_score'], reverse=True)
+        
+        return jsonify(recommendations)
+    except Exception as e:
+        print(f"Error in /api/priority_maintenance: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # --- 가상 데이터 생성을 위한 헬퍼 함수 ---
 def _generate_fake_data(num_records=150):
